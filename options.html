@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    :root {
+      --primary: #6200ee;
+      --accent: #03dac6;
+    }
+    body {
+      font-family: sans-serif;
+      padding: 20px;
+      max-width: 600px;
+      margin: auto;
+    }
+    h1 {
+      color: var(--primary);
+      margin-bottom: 20px;
+    }
+    .rule {
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      margin-bottom: 12px;
+      overflow: hidden;
+    }
+    summary {
+      background: #f7f7f7;
+      padding: 8px 12px;
+      cursor: pointer;
+      font-weight: bold;
+    }
+    .rule-content {
+      padding: 12px;
+      display: grid;
+      grid-gap: 8px;
+    }
+    label {
+      font-size: 13px;
+    }
+    input[type="text"] {
+      width: 100%;
+      padding: 6px;
+      box-sizing: border-box;
+      font-size: 14px;
+    }
+    input[type="checkbox"] {
+      transform: scale(1.2);
+      margin-right: 6px;
+    }
+    .rule-actions {
+      display: flex;
+      justify-content: flex-end;
+      margin-top: 8px;
+    }
+    button {
+      padding: 6px 12px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+      margin-left: 8px;
+    }
+    button.delete {
+      background: #b00020;
+      color: white;
+    }
+    button#add {
+      background: var(--accent);
+      color: white;
+      margin-bottom: 20px;
+    }
+    .bottom-bar {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 30px;
+    }
+    button#import, button#export {
+      background: var(--primary);
+      color: white;
+    }
+    input#importFile {
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <h1>Redirect Rules</h1>
+  <button id="add">+ Add Rule</button>
+  <div id="rules"></div>
+  <div class="bottom-bar">
+    <button id="export">Export JSON</button>
+    <div>
+      <button id="import">Import JSON</button>
+      <input type="file" id="importFile" accept="application/json">
+    </div>
+  </div>
+  <script src="options.js"></script>
+</body>
+</html>
