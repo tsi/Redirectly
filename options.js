@@ -28,12 +28,23 @@ function renderRules() {
           <input type="text" data-field="title" value="${rule.title || ''}">
         </label>
         <label>
+          Type:
+          <select data-field="type">
+            <option value="redirect" ${rule.type === 'redirect' ? 'selected' : ''}>Redirect</option>
+            <option value="setCookie" ${rule.type === 'setCookie' ? 'selected' : ''}>Set Cookie</option>
+          </select>
+        </label>
+        <label>
           Source (*) pattern:
           <input type="text" data-field="source" value="${rule.source}">
         </label>
-        <label>
+        <label class="targetField">
           Target URL:
-          <input type="text" data-field="target" value="${rule.target}">
+          <input type="text" data-field="target" value="${rule.target || ''}">
+        </label>
+        <label class="cookieField" style="display: none;">
+          Cookie Value:
+          <input type="text" data-field="cookieValue" value="${rule.cookieValue || ''}">
         </label>
         <label>
           <input type="checkbox" data-field="enabled" ${rule.enabled ? 'checked' : ''}>
@@ -44,12 +55,38 @@ function renderRules() {
         </div>
       </div>
     `;
+    // Handle type select visibility
+    const typeSelect = elm.querySelector('select[data-field="type"]');
+    const targetLabel = elm.querySelector('.targetField');
+    const cookieLabel = elm.querySelector('.cookieField');
+
+    // Initialize visibility based on rule.type
+    if (rule.type === 'setCookie') {
+      targetLabel.style.display = 'none';
+      cookieLabel.style.display = '';
+    }
+
+    // On type change
+    typeSelect.addEventListener('change', () => {
+      rule.type = typeSelect.value;
+      saveRules();
+      if (rule.type === 'setCookie') {
+        targetLabel.style.display = 'none';
+        cookieLabel.style.display = '';
+      } else {
+        targetLabel.style.display = '';
+        cookieLabel.style.display = 'none';
+      }
+    });
+
     // Wire up inputs
     elm.querySelectorAll('[data-field]').forEach(input => {
       input.addEventListener('change', () => {
         const f = input.getAttribute('data-field');
         if (f === 'enabled') {
           rule.enabled = input.checked;
+        } else if (f === 'type') {
+          // Already handled above
         } else {
           rule[f] = input.value;
         }
@@ -68,7 +105,7 @@ function renderRules() {
 
 // Add a blank rule
 document.getElementById('add').addEventListener('click', () => {
-  rules.push({ title: '', source: '', target: '', enabled: true });
+  rules.push({ title: '', source: '', target: '', cookieValue: '', enabled: true, type: 'redirect' });
   saveRules();
   renderRules();
 });
@@ -101,7 +138,9 @@ importFile.addEventListener('change', () => {
           title: r.title || '',
           source: r.source || '',
           target: r.target || '',
-          enabled: !!r.enabled
+          cookieValue: r.cookieValue || '',
+          enabled: !!r.enabled,
+          type: r.type || 'redirect'
         }));
         saveRules();
         renderRules();

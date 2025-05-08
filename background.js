@@ -28,34 +28,50 @@ function applyRules(list) {
       .filter(r => r.enabled)
       .map((r, i) => {
         const id = i + 1;
-        const { regex, substitution } = wildcardRuleToDNR(r.source, r.target);
-
-        // Create the rule
-        const rule = {
-          id,
-          priority: 1,
-          action: {
-            type: 'redirect',
-            redirect: {
-              regexSubstitution: substitution
-            }
-          },
-          condition: {
-            regexFilter: regex,
-            isUrlFilterCaseSensitive: false,
-            resourceTypes: [
-              "main_frame","sub_frame","stylesheet","script",
-              "image","font","object","xmlhttprequest",
-              "ping","csp_report","media","websocket","other"
-            ]
-          }
+        const { regex } = wildcardRuleToDNR(r.source, r.target);
+        const condition = {
+          regexFilter: regex,
+          isUrlFilterCaseSensitive: false,
+          resourceTypes: [
+            "main_frame","sub_frame","stylesheet","script",
+            "image","font","object","xmlhttprequest",
+            "ping","csp_report","media","websocket","other"
+          ]
         };
 
-        // Log the full rule for debugging
-        log('Creating rule:', rule);
-
-        return rule;
-      });
+        if (r.type === 'redirect') {
+          const { substitution } = wildcardRuleToDNR(r.source, r.target);
+          log('Creating redirect rule:', { id, source: r.source, target: r.target, regex, substitution });
+          return {
+            id,
+            priority: 1,
+            action: {
+              type: 'redirect',
+              redirect: { regexSubstitution: substitution }
+            },
+            condition
+          };
+        } else if (r.type === 'setCookie') {
+          log('Creating cookie rule:', { id, source: r.source, cookieValue: r.cookieValue, regex });
+          return {
+            id,
+            priority: 1,
+            action: {
+              type: 'modifyHeaders',
+              requestHeaders: [{
+                header: 'Cookie',
+                operation: 'set',
+                value: r.cookieValue
+              }]
+            },
+            condition
+          };
+        } else {
+          log('Unknown rule type, skipping:', r);
+          return null;
+        }
+      })
+      .filter(Boolean);
 
     // Log the rules being added
     log('Adding rules:', addRules);
@@ -95,8 +111,8 @@ chrome.declarativeNetRequest.onRuleMatchedDebug.addListener(info => {
   const tabId = info.request.tabId;
   log('Rule matched for tab', tabId, 'ruleId', info.ruleId);
   if (tabId != null) {
-    chrome.action.setBadgeText({ tabId, text: '●' });
-    chrome.action.setBadgeBackgroundColor({ tabId, color: '#03dac6' });
+    chrome.action.setBadgeText({ tabId, text: 'on' });
+    chrome.action.setBadgeBackgroundColor({ tabId, color: '#05e70d' });
   }
 });
 
