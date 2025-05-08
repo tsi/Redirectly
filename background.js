@@ -6,7 +6,7 @@ function log(...args) {
 }
 
 // Convert wildcard/source→regexFilter and wildcard/target→regexSubstitution
-function wildcardRuleToDNR(source, target) {
+function wildcardRuleToDNR(source, target = source) {
   // escape regex-special chars, turn * → (.+)
   const regex = `^${source.replace(/[-\/\\^$+?.()|[\]{}]/g, '\\$&').replace(/\*/g, '(.+)')}$`;
 
@@ -28,7 +28,8 @@ function applyRules(list) {
       .filter(r => r.enabled)
       .map((r, i) => {
         const id = i + 1;
-        const { regex } = wildcardRuleToDNR(r.source, r.target);
+        // Use only source for regex; r.target may be undefined for cookie rules
+        const { regex } = wildcardRuleToDNR(r.source);
         const condition = {
           regexFilter: regex,
           isUrlFilterCaseSensitive: false,
@@ -121,5 +122,73 @@ chrome.webNavigation.onCommitted.addListener(details => {
   if (details.frameId === 0) {
     log('Clearing badge for tab', details.tabId);
     chrome.action.setBadgeText({ tabId: details.tabId, text: '' });
+  }
+});
+
+// Listen for share-URL parameters to auto-add rules
+chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+  if (changeInfo.status === 'complete' && tab.url) {
+    try {
+      const pageUrl = new URL(tab.url);
+      const params = pageUrl.searchParams;
+
+      const newRules = [];
+
+      // Handle redirect parameters (can be multiple)
+      for (const redirectParam of params.getAll('redirect')) {
+        // redirectParam includes its own '?to='
+        const [srcPart, queryPart] = redirectParam.split('?');
+        const innerParams = new URLSearchParams(queryPart);
+        const target = innerParams.get('to');
+        if (target) {
+          newRules.push({
+            title: `Shared redirect: ${srcPart}`,
+            type: 'redirect',
+            source: srcPart,
+            target,
+            enabled: true
+          });
+        }
+      }
+
+      // Handle setcookie parameters (can be multiple)
+      for (const cookieParam of params.getAll('setcookie')) {
+        const [srcPart, queryPart] = cookieParam.split('?');
+        const innerParams = new URLSearchParams(queryPart);
+        const cookieValue = innerParams.get('to');
+        if (cookieValue) {
+          newRules.push({
+            title: `Shared cookie: ${srcPart}`,
+            type: 'setCookie',
+            source: srcPart,
+            cookieValue,
+            enabled: true
+          });
+        }
+      }
+
+      if (newRules.length) {
+        chrome.storage.local.get({ rules: [] }, data => {
+          // Remove existing rules that match newRules by source and type
+          const existing = data.rules.filter(r =>
+            !newRules.some(nr => nr.source === r.source)
+          );
+          const updated = existing.concat(newRules);
+          chrome.storage.local.set({ rules: updated }, () => {
+            applyRules(updated);
+          });
+        });
+        // Strip only share parameters, preserving other query params
+        const updatedParams = pageUrl.searchParams;
+        updatedParams.delete('redirect');
+        updatedParams.delete('setcookie');
+        // Reassign filtered search params
+        pageUrl.search = updatedParams.toString() ? '?' + updatedParams.toString() : '';
+        // Update URL without callback or reload
+        chrome.tabs.update(tabId, { url: pageUrl.toString() });
+      }
+    } catch (err) {
+      console.error('[Redirectly] Error parsing shared-rule URL:', err);
+    }
   }
 });
