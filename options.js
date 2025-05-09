@@ -13,101 +13,268 @@ function saveRules() {
   chrome.storage.local.set({ rules });
 }
 
+// Create an element with icon
+function createIconButton(iconId, className, title, clickHandler) {
+  const button = document.createElement('button');
+  button.className = `btn ${className}`;
+  button.title = title;
+  button.innerHTML = `<svg class="icon"><use href="#${iconId}"></use></svg>`;
+  if (clickHandler) {
+    button.addEventListener('click', clickHandler);
+  }
+  return button;
+}
+
 // Build the UI
 function renderRules() {
   const container = document.getElementById('rules');
   container.innerHTML = '';
+
   rules.forEach((rule, idx) => {
-    const elm = document.createElement('details');
-    elm.className = 'rule';
-    elm.innerHTML = `
-      <summary>${rule.title || 'Untitled Rule'}</summary>
-      <div class="rule-content">
-        <label>
-          Title:
-          <input type="text" data-field="title" value="${rule.title || ''}">
-        </label>
-        <label>
-          Type:
-          <select data-field="type">
-            <option value="redirect" ${rule.type === 'redirect' ? 'selected' : ''}>Redirect</option>
-            <option value="setCookie" ${rule.type === 'setCookie' ? 'selected' : ''}>Set Cookie</option>
-          </select>
-        </label>
-        <label>
-          Source (*) pattern:
-          <input type="text" data-field="source" value="${rule.source}">
-        </label>
-        <label class="targetField">
-          Target URL:
-          <input type="text" data-field="target" value="${rule.target || ''}">
-        </label>
-        <label class="cookieField" style="display: none;">
-          Cookie Value:
-          <input type="text" data-field="cookieValue" value="${rule.cookieValue || ''}">
-        </label>
-        <label>
-          <input type="checkbox" data-field="enabled" ${rule.enabled ? 'checked' : ''}>
-          Enabled
-        </label>
-        <div class="rule-actions">
-          <button class="delete">Delete</button>
-        </div>
-      </div>
-    `;
-    // Handle type select visibility
-    const typeSelect = elm.querySelector('select[data-field="type"]');
-    const targetLabel = elm.querySelector('.targetField');
-    const cookieLabel = elm.querySelector('.cookieField');
+    const ruleElement = document.createElement('div');
+    ruleElement.className = 'rule collapsed';
 
-    // Initialize visibility based on rule.type
-    if (rule.type === 'setCookie') {
-      targetLabel.style.display = 'none';
-      cookieLabel.style.display = '';
-    }
+    // Create rule header (visible when collapsed)
+    const header = document.createElement('div');
+    header.className = 'rule-header';
 
-    // On type change
-    typeSelect.addEventListener('change', () => {
-      rule.type = typeSelect.value;
+    // Title element that can be edited inline
+    const titleElement = document.createElement('div');
+    titleElement.className = 'rule-title';
+
+    const titleText = document.createElement('span');
+    titleText.className = 'rule-title-text';
+    titleText.textContent = rule.title || 'Untitled Rule';
+
+    const titleInput = document.createElement('input');
+    titleInput.className = 'rule-title-input';
+    titleInput.type = 'text';
+    titleInput.value = rule.title || '';
+    titleInput.placeholder = 'Enter rule name';
+
+    titleElement.appendChild(titleText);
+    titleElement.appendChild(titleInput);
+
+    // Toggle for enable/disable
+    const toggleElement = document.createElement('div');
+    toggleElement.className = 'rule-toggle';
+
+    const toggleLabel = document.createElement('label');
+    toggleLabel.className = 'toggle-switch';
+
+    const toggleInput = document.createElement('input');
+    toggleInput.type = 'checkbox';
+    toggleInput.checked = rule.enabled;
+    toggleInput.addEventListener('change', () => {
+      rule.enabled = toggleInput.checked;
       saveRules();
-      if (rule.type === 'setCookie') {
-        targetLabel.style.display = 'none';
-        cookieLabel.style.display = '';
-      } else {
-        targetLabel.style.display = '';
-        cookieLabel.style.display = 'none';
+    });
+
+    const toggleSlider = document.createElement('span');
+    toggleSlider.className = 'toggle-slider';
+
+    toggleLabel.appendChild(toggleInput);
+    toggleLabel.appendChild(toggleSlider);
+    toggleElement.appendChild(toggleLabel);
+
+    // Rule actions (delete, duplicate, expand)
+    const actionsElement = document.createElement('div');
+    actionsElement.className = 'rule-actions';
+
+    // Edit title button
+    const editButton = createIconButton('icon-edit', 'btn-outline btn-icon', 'Edit title', (e) => {
+      e.stopPropagation();
+      titleElement.classList.add('editing');
+      titleInput.focus();
+    });
+
+    // Delete button
+    const deleteButton = createIconButton('icon-delete', 'btn-outline btn-icon', 'Delete rule', (e) => {
+      e.stopPropagation();
+      if (confirm('Are you sure you want to delete this rule?')) {
+        rules.splice(idx, 1);
+        saveRules();
+        renderRules();
       }
     });
 
-    // Wire up inputs
-    elm.querySelectorAll('[data-field]').forEach(input => {
-      input.addEventListener('change', () => {
-        const f = input.getAttribute('data-field');
-        if (f === 'enabled') {
-          rule.enabled = input.checked;
-        } else if (f === 'type') {
-          // Already handled above
-        } else {
-          rule[f] = input.value;
-        }
-        saveRules();
-      });
-    });
-    // Delete
-    elm.querySelector('.delete').addEventListener('click', () => {
-      rules.splice(idx, 1);
+    // Duplicate button
+    const duplicateButton = createIconButton('icon-copy', 'btn-outline btn-icon', 'Duplicate rule', (e) => {
+      e.stopPropagation();
+      const newRule = JSON.parse(JSON.stringify(rule));
+      newRule.title = `${newRule.title || 'Untitled Rule'} (Copy)`;
+      rules.splice(idx + 1, 0, newRule);
       saveRules();
       renderRules();
     });
-    container.appendChild(elm);
+
+    actionsElement.appendChild(editButton);
+    actionsElement.appendChild(duplicateButton);
+    actionsElement.appendChild(deleteButton);
+
+    // Add all header elements
+    header.appendChild(titleElement);
+    header.appendChild(toggleElement);
+    header.appendChild(actionsElement);
+
+    // Rule content (visible when expanded)
+    const content = document.createElement('div');
+    content.className = 'rule-content';
+
+    // Source pattern
+    const sourceGroup = document.createElement('div');
+    sourceGroup.className = 'form-group';
+
+    const sourceLabel = document.createElement('label');
+    sourceLabel.textContent = 'Source Pattern (*):';
+
+    const sourceInput = document.createElement('input');
+    sourceInput.type = 'text';
+    sourceInput.value = rule.source || '';
+    sourceInput.placeholder = 'https://source.com/*';
+    sourceInput.addEventListener('change', () => {
+      rule.source = sourceInput.value;
+      saveRules();
+    });
+
+    sourceGroup.appendChild(sourceLabel);
+    sourceGroup.appendChild(sourceInput);
+
+    // Create a flex container for type and target/cookie
+    const typeTargetContainer = document.createElement('div');
+    typeTargetContainer.style.display = 'flex';
+    typeTargetContainer.style.gap = '16px';
+
+    // Type selector
+    const typeGroup = document.createElement('div');
+    typeGroup.className = 'form-group';
+    typeGroup.style.width = '30%';
+
+    const typeLabel = document.createElement('label');
+    typeLabel.textContent = 'Rule Type:';
+
+    const typeSelect = document.createElement('select');
+    typeSelect.innerHTML = `
+      <option value="redirect" ${rule.type === 'redirect' ? 'selected' : ''}>Redirect</option>
+      <option value="setCookie" ${rule.type === 'setCookie' ? 'selected' : ''}>Set Cookie</option>
+    `;
+    typeSelect.addEventListener('change', () => {
+      rule.type = typeSelect.value;
+      saveRules();
+      renderRules(); // Re-render to update visibility of target/cookie fields
+    });
+
+    typeGroup.appendChild(typeLabel);
+    typeGroup.appendChild(typeSelect);
+
+    // Target URL (for redirect type)
+    const targetGroup = document.createElement('div');
+    targetGroup.className = 'form-group';
+    targetGroup.style.width = '70%';
+    targetGroup.style.display = rule.type === 'redirect' ? 'flex' : 'none';
+    targetGroup.style.flexDirection = 'column';
+
+    const targetLabel = document.createElement('label');
+    targetLabel.textContent = 'Target URL:';
+
+    const targetInput = document.createElement('input');
+    targetInput.type = 'text';
+    targetInput.value = rule.target || '';
+    targetInput.placeholder = 'https://destination.com/*';
+    targetInput.addEventListener('change', () => {
+      rule.target = targetInput.value;
+      saveRules();
+    });
+
+    targetGroup.appendChild(targetLabel);
+    targetGroup.appendChild(targetInput);
+
+    // Cookie Value (for setCookie type)
+    const cookieGroup = document.createElement('div');
+    cookieGroup.className = 'form-group';
+    cookieGroup.style.width = '70%';
+    cookieGroup.style.display = rule.type === 'setCookie' ? 'flex' : 'none';
+    cookieGroup.style.flexDirection = 'column';
+
+    const cookieLabel = document.createElement('label');
+    cookieLabel.textContent = 'Cookie Value:';
+
+    const cookieInput = document.createElement('input');
+    cookieInput.type = 'text';
+    cookieInput.value = rule.cookieValue || '';
+    cookieInput.placeholder = 'version=1.2.3-rc.4';
+    cookieInput.addEventListener('change', () => {
+      rule.cookieValue = cookieInput.value;
+      saveRules();
+    });
+
+    cookieGroup.appendChild(cookieLabel);
+    cookieGroup.appendChild(cookieInput);
+
+    // Add all to the flex container
+    typeTargetContainer.appendChild(typeGroup);
+    typeTargetContainer.appendChild(targetGroup);
+    typeTargetContainer.appendChild(cookieGroup);
+
+    // Add elements to the content
+    content.appendChild(sourceGroup);
+    content.appendChild(typeTargetContainer);
+
+    // Add header and content to rule element
+    ruleElement.appendChild(header);
+    ruleElement.appendChild(content);
+
+    // Toggle collapse/expand
+    header.addEventListener('click', () => {
+      ruleElement.classList.toggle('collapsed');
+    });
+
+    // Handle inline title editing
+    titleInput.addEventListener('blur', () => {
+      rule.title = titleInput.value;
+      titleText.textContent = rule.title || 'Untitled Rule';
+      titleElement.classList.remove('editing');
+      saveRules();
+    });
+
+    titleInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        titleInput.blur();
+      } else if (e.key === 'Escape') {
+        titleInput.value = rule.title || '';
+        titleElement.classList.remove('editing');
+      }
+    });
+
+    container.appendChild(ruleElement);
   });
 }
 
 // Add a blank rule
 document.getElementById('add').addEventListener('click', () => {
-  rules.push({ title: '', source: '', target: '', cookieValue: '', enabled: true, type: 'redirect' });
+  rules.push({
+    title: '',
+    source: '',
+    target: '',
+    cookieValue: '',
+    enabled: true,
+    type: 'redirect'
+  });
   saveRules();
   renderRules();
+
+  // Auto-expand and focus the new rule
+  setTimeout(() => {
+    const newRule = document.querySelector('.rule:last-child');
+    if (newRule) {
+      newRule.classList.remove('collapsed');
+      const titleInput = newRule.querySelector('.rule-title-input');
+      if (titleInput) {
+        newRule.querySelector('.rule-title').classList.add('editing');
+        titleInput.focus();
+      }
+    }
+  }, 10);
 });
 
 // Export JSON
@@ -116,7 +283,7 @@ document.getElementById('export').addEventListener('click', () => {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = 'redirect-rules.json';
+  a.download = 'redirectly-rules.json';
   a.click();
   URL.revokeObjectURL(url);
 });
@@ -126,9 +293,11 @@ const importFile = document.getElementById('importFile');
 document.getElementById('import').addEventListener('click', () => {
   importFile.click();
 });
+
 importFile.addEventListener('change', () => {
   const file = importFile.files[0];
   if (!file) return;
+
   const reader = new FileReader();
   reader.onload = () => {
     try {
@@ -148,10 +317,11 @@ importFile.addEventListener('change', () => {
         alert('Invalid JSON format.');
       }
     } catch (e) {
-      alert('Error parsing JSON.');
+      alert('Error parsing JSON: ' + e.message);
     }
   };
   reader.readAsText(file);
+  importFile.value = ''; // Reset so the same file can be imported again
 });
 
 // Initialize
