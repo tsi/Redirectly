@@ -1,10 +1,81 @@
 let rules = [];
+let globalEnabled = true; // Track global enabled state
 
 // Fetch from storage
 function loadRules() {
-  chrome.storage.local.get({ rules: [] }, data => {
+  chrome.storage.local.get({ rules: [], globalEnabled: true }, data => {
     rules = data.rules;
+    globalEnabled = data.globalEnabled;
     renderRules();
+
+    // Add global toggle to the header
+    addGlobalToggleToHeader();
+  });
+}
+
+// Add global toggle to header
+function addGlobalToggleToHeader() {
+  // Remove any existing toggle first to avoid duplicates
+  const existingToggle = document.getElementById('header-global-toggle');
+  if (existingToggle) {
+    existingToggle.remove();
+  }
+
+  // Create toggle element
+  const toggleContainer = document.createElement('div');
+  toggleContainer.id = 'header-global-toggle';
+  toggleContainer.className = 'header-toggle';
+
+  const toggleLabel = document.createElement('label');
+  toggleLabel.className = 'toggle-switch';
+
+  const toggleInput = document.createElement('input');
+  toggleInput.id = 'header-global-toggle-input';
+  toggleInput.type = 'checkbox';
+  toggleInput.checked = globalEnabled;
+
+  const toggleSlider = document.createElement('span');
+  toggleSlider.className = 'toggle-slider';
+
+  toggleInput.addEventListener('change', () => {
+    globalEnabled = toggleInput.checked;
+    chrome.storage.local.set({ globalEnabled }, () => {
+      renderRules(); // Re-render to update disabled state
+
+      // Send message to background script to update icon
+      chrome.runtime.sendMessage({ action: 'updateIcon' });
+    });
+  });
+
+  toggleLabel.appendChild(toggleInput);
+  toggleLabel.appendChild(toggleSlider);
+  toggleContainer.appendChild(toggleLabel);
+
+  // Add a label for the toggle
+  const toggleText = document.createElement('span');
+  toggleText.className = 'toggle-text';
+  toggleText.textContent = 'Enable All';
+  toggleContainer.appendChild(toggleText);
+
+  // Insert into header actions
+  const headerActions = document.querySelector('.header-actions');
+  headerActions.insertBefore(toggleContainer, headerActions.firstChild);
+
+  // Enable transitions AFTER setting the initial state
+  setTimeout(() => {
+    toggleLabel.classList.add('has-transition');
+  }, 50);
+
+  // Listen for storage changes to keep toggle in sync with popup
+  chrome.storage.onChanged.addListener((changes, area) => {
+    if (area === 'local' && changes.globalEnabled) {
+      const toggleInput = document.getElementById('header-global-toggle-input');
+      if (toggleInput) {
+        toggleInput.checked = changes.globalEnabled.newValue;
+        globalEnabled = changes.globalEnabled.newValue;
+        renderRules(); // Re-render rules to update disabled state
+      }
+    }
   });
 }
 
@@ -33,6 +104,11 @@ function renderRules() {
   rules.forEach((rule, idx) => {
     const ruleElement = document.createElement('div');
     ruleElement.className = 'rule collapsed';
+
+    // Apply disabled styling if globalEnabled is false
+    if (!globalEnabled) {
+      ruleElement.classList.add('disabled');
+    }
 
     // Create rule header (visible when collapsed)
     const header = document.createElement('div');
@@ -65,6 +141,7 @@ function renderRules() {
     const toggleInput = document.createElement('input');
     toggleInput.type = 'checkbox';
     toggleInput.checked = rule.enabled;
+    toggleInput.disabled = !globalEnabled; // Disable toggle if globalEnabled is false
     toggleInput.addEventListener('change', () => {
       rule.enabled = toggleInput.checked;
       saveRules();

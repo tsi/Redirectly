@@ -1,8 +1,23 @@
 let rules = [];
+let globalEnabled = true; // Track global enabled state
 
 // Debug helper
 function log(...args) {
   console.debug('[Redirectly]', ...args);
+}
+
+// Function to update the extension icon state
+function updateExtensionIcon() {
+  if (globalEnabled) {
+    // Clear any "off" badge when enabled
+    chrome.action.setBadgeText({ text: '' });
+  } else {
+    // Set "off" badge when disabled
+    chrome.action.setBadgeText({ text: 'off' });
+    chrome.action.setBadgeBackgroundColor({ color: '#888' });
+  }
+
+  log('Updated extension icon to', globalEnabled ? 'enabled' : 'disabled', 'state');
 }
 
 // Convert wildcard/source→regexFilter and wildcard/target→regexSubstitution
@@ -21,89 +36,132 @@ function wildcardRuleToDNR(source, target = source) {
 
 // Apply (and debug) dynamic rules
 function applyRules(list) {
-  chrome.declarativeNetRequest.getDynamicRules(existing => {
-    log('Existing dynamic rules:', existing);
-    const removeIds = existing.map(r => r.id);
-    const addRules = list
-      .filter(r => r.enabled)
-      .map((r, i) => {
-        const id = i + 1;
-        // Use only source for regex; r.target may be undefined for cookie rules
-        const { regex } = wildcardRuleToDNR(r.source);
-        const condition = {
-          regexFilter: regex,
-          isUrlFilterCaseSensitive: false,
-          resourceTypes: [
-            "main_frame","sub_frame","stylesheet","script",
-            "image","font","object","xmlhttprequest",
-            "ping","csp_report","media","websocket","other"
-          ]
-        };
+  // Check if extension is globally enabled
+  chrome.storage.local.get({ globalEnabled: true }, data => {
+    globalEnabled = data.globalEnabled;
 
-        if (r.type === 'redirect') {
-          const { substitution } = wildcardRuleToDNR(r.source, r.target);
-          log('Creating redirect rule:', { id, source: r.source, target: r.target, regex, substitution });
-          return {
-            id,
-            priority: 1,
-            action: {
-              type: 'redirect',
-              redirect: { regexSubstitution: substitution }
-            },
-            condition
-          };
-        } else if (r.type === 'setCookie') {
-          log('Creating cookie rule:', { id, source: r.source, cookieValue: r.cookieValue, regex });
-          return {
-            id,
-            priority: 1,
-            action: {
-              type: 'modifyHeaders',
-              requestHeaders: [{
-                header: 'Cookie',
-                operation: 'set',
-                value: r.cookieValue
-              }]
-            },
-            condition
-          };
-        } else {
-          log('Unknown rule type, skipping:', r);
-          return null;
-        }
-      })
-      .filter(Boolean);
+    // Update the extension icon
+    updateExtensionIcon();
 
-    // Log the rules being added
-    log('Adding rules:', addRules);
+    chrome.declarativeNetRequest.getDynamicRules(existing => {
+      log('Existing dynamic rules:', existing);
+      const removeIds = existing.map(r => r.id);
 
-    chrome.declarativeNetRequest.updateDynamicRules(
-      { removeRuleIds: removeIds, addRules },
-      () => {
-        if (chrome.runtime.lastError) {
-          console.error('[Redirectly] updateDynamicRules ERROR:', chrome.runtime.lastError.message);
-        } else {
-          log('updateDynamicRules succeeded; new rules:', addRules);
-        }
+      // If globally disabled, just remove all rules
+      if (!globalEnabled) {
+        chrome.declarativeNetRequest.updateDynamicRules(
+          { removeRuleIds: removeIds, addRules: [] },
+          () => {
+            if (chrome.runtime.lastError) {
+              console.error('[Redirectly] updateDynamicRules ERROR:', chrome.runtime.lastError.message);
+            } else {
+              log('Extension globally disabled, removed all rules');
+            }
+          }
+        );
+        return;
       }
-    );
+
+      // Continue with normal rule application if globally enabled
+      const addRules = list
+        .filter(r => r.enabled)
+        .map((r, i) => {
+          const id = i + 1;
+          // Use only source for regex; r.target may be undefined for cookie rules
+          const { regex } = wildcardRuleToDNR(r.source);
+          const condition = {
+            regexFilter: regex,
+            isUrlFilterCaseSensitive: false,
+            resourceTypes: [
+              "main_frame","sub_frame","stylesheet","script",
+              "image","font","object","xmlhttprequest",
+              "ping","csp_report","media","websocket","other"
+            ]
+          };
+
+          if (r.type === 'redirect') {
+            const { substitution } = wildcardRuleToDNR(r.source, r.target);
+            log('Creating redirect rule:', { id, source: r.source, target: r.target, regex, substitution });
+            return {
+              id,
+              priority: 1,
+              action: {
+                type: 'redirect',
+                redirect: { regexSubstitution: substitution }
+              },
+              condition
+            };
+          } else if (r.type === 'setCookie') {
+            log('Creating cookie rule:', { id, source: r.source, cookieValue: r.cookieValue, regex });
+            return {
+              id,
+              priority: 1,
+              action: {
+                type: 'modifyHeaders',
+                requestHeaders: [{
+                  header: 'Cookie',
+                  operation: 'set',
+                  value: r.cookieValue
+                }]
+              },
+              condition
+            };
+          } else {
+            log('Unknown rule type, skipping:', r);
+            return null;
+          }
+        })
+        .filter(Boolean);
+
+      // Log the rules being added
+      log('Adding rules:', addRules);
+
+      chrome.declarativeNetRequest.updateDynamicRules(
+        { removeRuleIds: removeIds, addRules },
+        () => {
+          if (chrome.runtime.lastError) {
+            console.error('[Redirectly] updateDynamicRules ERROR:', chrome.runtime.lastError.message);
+          } else {
+            log('updateDynamicRules succeeded; new rules:', addRules);
+          }
+        }
+      );
+    });
   });
 }
 
 // Load & apply on startup
 log('Loading rules from storage…');
-chrome.storage.local.get({ rules: [] }, data => {
+chrome.storage.local.get({ rules: [], globalEnabled: true }, data => {
   rules = data.rules;
+  globalEnabled = data.globalEnabled;
   log('Loaded rules:', rules);
+  log('Global enabled state:', globalEnabled);
+
+  // Update extension icon on startup
+  updateExtensionIcon();
+
   applyRules(rules);
 });
 
-// Re-apply when rules change
+// Re-apply when rules or global state change
 chrome.storage.onChanged.addListener((changes, area) => {
-  if (area === 'local' && changes.rules) {
-    rules = changes.rules.newValue;
-    log('Storage.rules changed:', rules);
-    applyRules(rules);
+  if (area === 'local') {
+    if (changes.rules) {
+      rules = changes.rules.newValue;
+      log('Storage.rules changed:', rules);
+      applyRules(rules);
+    }
+
+    if (changes.globalEnabled) {
+      globalEnabled = changes.globalEnabled.newValue;
+      log('Global enabled state changed:', globalEnabled);
+
+      // Update extension icon when global state changes
+      updateExtensionIcon();
+
+      applyRules(rules);
+    }
   }
 });
 
@@ -111,15 +169,16 @@ chrome.storage.onChanged.addListener((changes, area) => {
 chrome.declarativeNetRequest.onRuleMatchedDebug.addListener(info => {
   const tabId = info.request.tabId;
   log('Rule matched for tab', tabId, 'ruleId', info.ruleId);
-  if (tabId != null) {
+  if (tabId != null && globalEnabled) {
+    // Only set the "on" badge if extension is globally enabled
     chrome.action.setBadgeText({ tabId, text: 'on' });
     chrome.action.setBadgeBackgroundColor({ tabId, color: '#05e70d' });
   }
 });
 
-// Clear badge on top-level navigation
+// Clear badge on top-level navigation (only if we're in enabled state)
 chrome.webNavigation.onCommitted.addListener(details => {
-  if (details.frameId === 0) {
+  if (details.frameId === 0 && globalEnabled) {
     log('Clearing badge for tab', details.tabId);
     chrome.action.setBadgeText({ tabId: details.tabId, text: '' });
   }
@@ -190,5 +249,13 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
     } catch (err) {
       console.error('[Redirectly] Error parsing shared-rule URL:', err);
     }
+  }
+});
+
+// Listen for messages from popup or options page
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (message.action === 'updateIcon') {
+    updateExtensionIcon();
+    sendResponse({ success: true });
   }
 });

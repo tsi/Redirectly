@@ -44,7 +44,7 @@ body {
 /* Header Styles */
 .header {
   display: flex;
-  align-items: center;
+  align-items: start;
   margin-bottom: 24px;
 }
 
@@ -74,6 +74,31 @@ body {
 .header-actions {
   display: flex;
   gap: 8px;
+}
+
+/* Header toggle styles */
+.header-toggle {
+  display: flex;
+  align-items: center;
+  margin-left: 10px;
+}
+
+.header-toggle .toggle-text {
+  margin-left: 8px;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+/* Popup header toggle specific styles */
+.popup-header .header-toggle {
+  margin-left: auto;
+}
+
+/* Options page header toggle specific styles */
+.header-actions .header-toggle {
+  margin-right: 12px;
+  padding-right: 12px;
+  border-right: 1px solid var(--border);
 }
 
 /* Rules Styles */
@@ -159,6 +184,22 @@ body {
   display: none;
 }
 
+.rule.disabled {
+  opacity: 0.6;
+  position: relative;
+}
+
+.rule.disabled::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.1);
+  pointer-events: none;
+}
+
 .form-group {
   display: flex;
   flex-direction: column;
@@ -210,7 +251,7 @@ input[type="text"]:focus, select:focus {
   right: 0;
   bottom: 0;
   background-color: #ccc;
-  transition: .3s;
+  transition: none;
   border-radius: 20px;
 }
 
@@ -222,8 +263,16 @@ input[type="text"]:focus, select:focus {
   left: 2px;
   bottom: 2px;
   background-color: white;
-  transition: .3s;
+  transition: none;
   border-radius: 50%;
+}
+
+.toggle-switch.has-transition .toggle-slider {
+  transition: .3s;
+}
+
+.toggle-switch.has-transition .toggle-slider:before {
+  transition: .3s;
 }
 
 input:checked + .toggle-slider {
@@ -313,6 +362,23 @@ input:checked + .toggle-slider:before {
   display: none;
 }
 
+/* Global toggle container in options page */
+.global-toggle-container {
+  display: flex;
+  align-items: center;
+  background-color: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px 16px;
+  margin-bottom: 20px;
+}
+
+.global-toggle-container .toggle-label {
+  margin-left: 10px;
+  font-size: 15px;
+  font-weight: 500;
+}
+
 /* Popup specific styles */
 .popup {
   min-width: 280px;
@@ -354,6 +420,24 @@ input:checked + .toggle-slider:before {
   font-weight: 500;
 }
 
+.popup-badge.disabled {
+  background-color: #888;
+  opacity: 0.6;
+}
+
 .popup-button {
   width: 100%;
+}
+
+.global-toggle {
+  display: flex;
+  align-items: center;
+  margin-top: 12px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+
+.toggle-label {
+  margin-left: 10px;
+  font-size: 14px;
 }
