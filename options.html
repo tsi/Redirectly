@@ -15,6 +15,13 @@
         </div>
       </div>
       <div class="header-actions">
+        <div class="header-toggle">
+          <label class="toggle-switch">
+            <input type="checkbox" id="global-enabled-toggle">
+            <span class="toggle-slider"></span>
+          </label>
+          <span class="toggle-text">Enable All</span>
+        </div>
         <button id="export" class="btn btn-primary">Export</button>
         <button id="import" class="btn btn-primary">Import</button>
         <input type="file" id="importFile" class="file-input" accept="application/json">
@@ -45,6 +52,64 @@
       <path d="M16.59 8.59L12 13.17 7.41 8.59 6 10l6 6 6-6z"/>
     </symbol>
   </svg>
+
+  <!-- Rule Template -->
+  <template id="rule-template">
+    <div class="rule collapsed">
+      <div class="rule-header">
+        <div class="rule-title">
+          <span class="rule-title-text">Untitled Rule</span>
+          <input class="rule-title-input" type="text" placeholder="Enter rule name">
+        </div>
+
+        <div class="rule-toggle">
+          <label class="toggle-switch">
+            <input type="checkbox" class="rule-enabled-toggle">
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+
+        <div class="rule-actions">
+          <button class="btn btn-outline btn-icon edit-button" title="Edit title">
+            <svg class="icon"><use href="#icon-edit"></use></svg>
+          </button>
+          <button class="btn btn-outline btn-icon duplicate-button" title="Duplicate rule">
+            <svg class="icon"><use href="#icon-copy"></use></svg>
+          </button>
+          <button class="btn btn-outline btn-icon delete-button" title="Delete rule">
+            <svg class="icon"><use href="#icon-delete"></use></svg>
+          </button>
+        </div>
+      </div>
+
+      <div class="rule-content">
+        <div class="form-group source-group">
+          <label>Source Pattern (*):</label>
+          <input type="text" class="source-input" placeholder="https://source.com/*">
+        </div>
+
+        <div class="type-target-container" style="display: flex; gap: 16px;">
+          <div class="form-group type-group" style="width: 30%;">
+            <label>Rule Type:</label>
+            <select class="type-select">
+              <option value="redirect">Redirect</option>
+              <option value="setCookie">Set Cookie</option>
+            </select>
+          </div>
+
+          <div class="form-group target-group" style="width: 70%; flex-direction: column;">
+            <label>Target URL:</label>
+            <input type="text" class="target-input" placeholder="https://destination.com/*">
+          </div>
+
+          <div class="form-group cookie-group" style="width: 70%; flex-direction: column; display: none;">
+            <label>Cookie Value:</label>
+            <input type="text" class="cookie-input" placeholder="version=1.2.3-rc.4">
+          </div>
+        </div>
+      </div>
+    </div>
+  </template>
 
   <script src="options.js"></script>
 </body>

@@ -47,7 +47,7 @@ function applyRules(list) {
       log('Existing dynamic rules:', existing);
       const removeIds = existing.map(r => r.id);
 
-      // If globally disabled, just remove all rules
+      // If globally disabled, remove all rules
       if (!globalEnabled) {
         chrome.declarativeNetRequest.updateDynamicRules(
           { removeRuleIds: removeIds, addRules: [] },
@@ -62,7 +62,7 @@ function applyRules(list) {
         return;
       }
 
-      // Continue with normal rule application if globally enabled
+      // if globally enabled
       const addRules = list
         .filter(r => r.enabled)
         .map((r, i) => {
@@ -165,7 +165,7 @@ chrome.storage.onChanged.addListener((changes, area) => {
   }
 });
 
-// Badge when a rule matches
+// Update badge when a rule matches
 chrome.declarativeNetRequest.onRuleMatchedDebug.addListener(info => {
   const tabId = info.request.tabId;
   log('Rule matched for tab', tabId, 'ruleId', info.ruleId);
@@ -210,7 +210,7 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
         }
       }
 
-      // Handle setcookie parameters (can be multiple)
+      // Handle setcookie parameters (may be multiple)
       for (const cookieParam of params.getAll('setcookie')) {
         const [srcPart, queryPart] = cookieParam.split('?');
         const innerParams = new URLSearchParams(queryPart);
@@ -228,22 +228,25 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
 
       if (newRules.length) {
         chrome.storage.local.get({ rules: [] }, data => {
-          // Remove existing rules that match newRules by source and type
+          // Remove existing rules that match newRules by source
           const existing = data.rules.filter(r =>
             !newRules.some(nr => nr.source === r.source)
           );
           const updated = existing.concat(newRules);
           chrome.storage.local.set({ rules: updated }, () => {
             applyRules(updated);
+
+            // Notify any open options pages about the new rules
+            chrome.runtime.sendMessage({ action: 'rulesAddedFromUrl', rules: newRules });
           });
         });
-        // Strip only share parameters, preserving other query params
+        // Strip share parameters, preserving other query params
         const updatedParams = pageUrl.searchParams;
         updatedParams.delete('redirect');
         updatedParams.delete('setcookie');
         // Reassign filtered search params
         pageUrl.search = updatedParams.toString() ? '?' + updatedParams.toString() : '';
-        // Update URL without callback or reload
+        // Update URL, triggers reload
         chrome.tabs.update(tabId, { url: pageUrl.toString() });
       }
     } catch (err) {
