@@ -2,7 +2,7 @@
   "name": "Redirectly",
   "manifest_version": 3,
   "version": "1.1",
-  "description": "Wildcard redirect rules using DeclarativeNetRequest (MV3)",
+  "description": "Redirect and Cookie setting rules using DeclarativeNetRequest (MV3)",
   "permissions": [
     "storage",
     "declarativeNetRequest",
