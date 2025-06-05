@@ -51,6 +51,36 @@ function saveRules() {
   chrome.storage.local.set({ rules });
 }
 
+// Generate shareable URL parameter for a rule
+function generateShareableParam(rule) {
+  if (!rule.source) return '';
+  
+  if (rule.type === 'redirect' && rule.target) {
+    return `redirect=${encodeURIComponent(rule.source)}?to=${encodeURIComponent(rule.target)}`;
+  } else if (rule.type === 'setCookie' && rule.cookieValue) {
+    return `setcookie=${encodeURIComponent(rule.source)}?to=${encodeURIComponent(rule.cookieValue)}`;
+  }
+  
+  return '';
+}
+
+// Copy text to clipboard
+async function copyToClipboard(text) {
+  try {
+    await navigator.clipboard.writeText(text);
+    return true;
+  } catch (err) {
+    // Fallback for older browsers
+    const textArea = document.createElement('textarea');
+    textArea.value = text;
+    document.body.appendChild(textArea);
+    textArea.select();
+    const success = document.execCommand('copy');
+    document.body.removeChild(textArea);
+    return success;
+  }
+}
+
 // Build the UI using the HTML template
 function renderRules() {
   const container = document.getElementById('rules');
@@ -98,6 +128,22 @@ function renderRules() {
     targetGroup.style.display = rule.type === 'redirect' ? 'flex' : 'none';
     cookieGroup.style.display = rule.type === 'setCookie' ? 'flex' : 'none';
 
+    // Set up share link
+    const shareLink = ruleElement.querySelector('.share-link');
+    
+    // Function to update share link
+    const updateShareLink = () => {
+      const shareParam = generateShareableParam(rule);
+      if (shareParam) {
+        shareLink.classList.remove('disabled');
+      } else {
+        shareLink.classList.add('disabled');
+      }
+    };
+    
+    // Initial update
+    updateShareLink();
+
     // Add event listeners
     // Toggle enabled state
     toggleInput.addEventListener('change', () => {
@@ -141,22 +187,46 @@ function renderRules() {
       ruleElement.classList.toggle('collapsed');
     });
 
+    // Share link click
+    shareLink.addEventListener('click', async (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      
+      if (shareLink.classList.contains('disabled')) return;
+      
+      const shareParam = generateShareableParam(rule);
+      if (shareParam) {
+        const success = await copyToClipboard(shareParam);
+        if (success) {
+          // Visual feedback
+          const originalText = shareLink.textContent;
+          shareLink.textContent = 'Copied!';
+          setTimeout(() => {
+            shareLink.textContent = originalText;
+          }, 2000);
+        }
+      }
+    });
+
     // Source input change
     sourceInput.addEventListener('change', () => {
       rule.source = sourceInput.value;
       saveRules();
+      updateShareLink();
     });
 
     // Target input change
     targetInput.addEventListener('change', () => {
       rule.target = targetInput.value;
       saveRules();
+      updateShareLink();
     });
 
     // Cookie input change
     cookieInput.addEventListener('change', () => {
       rule.cookieValue = cookieInput.value;
       saveRules();
+      updateShareLink();
     });
 
     // Type select change
@@ -167,6 +237,9 @@ function renderRules() {
       // Update field visibility based on type
       targetGroup.style.display = rule.type === 'redirect' ? 'flex' : 'none';
       cookieGroup.style.display = rule.type === 'setCookie' ? 'flex' : 'none';
+      
+      // Update share link
+      updateShareLink();
     });
 
     // Handle inline title editing
@@ -175,6 +248,7 @@ function renderRules() {
       titleText.textContent = rule.title || 'Untitled Rule';
       ruleElement.querySelector('.rule-title').classList.remove('editing');
       saveRules();
+      updateShareLink();
     });
 
     titleInput.addEventListener('keydown', (e) => {

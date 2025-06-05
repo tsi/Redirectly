@@ -200,8 +200,13 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
         const innerParams = new URLSearchParams(queryPart);
         const target = innerParams.get('to');
         if (target) {
+          // Create a more descriptive title showing the redirect flow
+          const sourceClean = srcPart.replace(/^https?:\/\//, '').replace(/\/\*$/, '');
+          const targetClean = target.replace(/^https?:\/\//, '').replace(/\/\*$/, '');
+          const sourceDisplay = sourceClean.length > 30 ? sourceClean.substring(0, 27) + '...' : sourceClean;
+          const targetDisplay = targetClean.length > 30 ? targetClean.substring(0, 27) + '...' : targetClean;
           newRules.push({
-            title: `Shared redirect: ${srcPart}`,
+            title: `${sourceDisplay} → ${targetDisplay}`,
             type: 'redirect',
             source: srcPart,
             target,
@@ -216,8 +221,12 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
         const innerParams = new URLSearchParams(queryPart);
         const cookieValue = innerParams.get('to');
         if (cookieValue) {
+          // Create a more descriptive title showing the cookie action
+          const sourceClean = srcPart.replace(/^https?:\/\//, '').replace(/\/\*$/, '');
+          const sourceDisplay = sourceClean.length > 25 ? sourceClean.substring(0, 22) + '...' : sourceClean;
+          const cookieDisplay = cookieValue.length > 35 ? cookieValue.substring(0, 32) + '...' : cookieValue;
           newRules.push({
-            title: `Shared cookie: ${srcPart}`,
+            title: `Set cookie on ${sourceDisplay}: ${cookieDisplay}`,
             type: 'setCookie',
             source: srcPart,
             cookieValue,
