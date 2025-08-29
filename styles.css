@@ -450,6 +450,67 @@ input:checked + .toggle-slider:before {
   width: 100%;
 }
 
+/* Popup rules list styles */
+.popup-rules {
+  margin-bottom: 16px;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.popup-rule {
+  border-bottom: 1px solid var(--border);
+  padding: 8px 0;
+}
+
+.popup-rule:last-child {
+  border-bottom: none;
+}
+
+.popup-rule.disabled {
+  opacity: 0.6;
+}
+
+.popup-rule.disabled .popup-rule-enabled-toggle {
+  pointer-events: none;
+}
+
+.popup-rule-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.popup-rule-name {
+  font-size: 13px;
+  color: var(--text-primary);
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.popup-rule-toggle {
+  flex-shrink: 0;
+}
+
+/* Smaller toggle switch for popup rules */
+.toggle-switch-small {
+  width: 28px;
+  height: 16px;
+}
+
+.toggle-switch-small .toggle-slider:before {
+  height: 12px;
+  width: 12px;
+  left: 2px;
+  bottom: 2px;
+}
+
+.toggle-switch-small input:checked + .toggle-slider:before {
+  transform: translateX(12px);
+}
+
 .global-toggle {
   display: flex;
   align-items: center;
