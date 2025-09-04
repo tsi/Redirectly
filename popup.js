@@ -1,6 +1,6 @@
 document.addEventListener('DOMContentLoaded', () => {
   // Get global enabled state and rule count
-  chrome.storage.local.get({ rules: [], globalEnabled: true }, data => {
+  chrome.storage.local.get({ rules: [], globalEnabled: true, sortBy: 'created' }, data => {
     const totalRules = data.rules.length;
     const enabledRules = data.rules.filter(rule => rule.enabled).length;
     const ruleCountElement = document.getElementById('rule-count');
@@ -43,7 +43,7 @@ document.addEventListener('DOMContentLoaded', () => {
       });
     });
 
-    renderPopupRules(data.rules, data.globalEnabled);
+    renderPopupRules(data.rules, data.globalEnabled, data.sortBy);
   });
 
   // Listen for storage changes to keep toggle in sync with options page
@@ -63,8 +63,8 @@ document.addEventListener('DOMContentLoaded', () => {
           }
 
           // Re-render rules with new global state
-          chrome.storage.local.get({ rules: [] }, data => {
-            renderPopupRules(data.rules, changes.globalEnabled.newValue);
+          chrome.storage.local.get({ rules: [], sortBy: 'created' }, data => {
+            renderPopupRules(data.rules, changes.globalEnabled.newValue, data.sortBy);
           });
         }
       }
@@ -77,8 +77,15 @@ document.addEventListener('DOMContentLoaded', () => {
         ruleCountElement.textContent = `${enabledRules} of ${totalRules}`;
 
         // Re-render rules list
-        chrome.storage.local.get({ globalEnabled: true }, data => {
-          renderPopupRules(changes.rules.newValue, data.globalEnabled);
+        chrome.storage.local.get({ globalEnabled: true, sortBy: 'created' }, data => {
+          renderPopupRules(changes.rules.newValue, data.globalEnabled, data.sortBy);
+        });
+      }
+      
+      if (changes.sortBy) {
+        // Re-render rules with new sort order
+        chrome.storage.local.get({ rules: [], globalEnabled: true }, data => {
+          renderPopupRules(data.rules, data.globalEnabled, changes.sortBy.newValue);
         });
       }
     }
@@ -91,7 +98,7 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // Function to render rules in the popup
-function renderPopupRules(rules, globalEnabled) {
+function renderPopupRules(rules, globalEnabled, sortBy = 'created') {
   const rulesContainer = document.getElementById('popup-rules');
   rulesContainer.innerHTML = '';
 
@@ -99,8 +106,13 @@ function renderPopupRules(rules, globalEnabled) {
     return;
   }
 
-  rules.forEach((rule, index) => {
-    const ruleElement = renderRule(rule, index, globalEnabled);
+  // Sort rules before rendering
+  const sortedRules = sortRules(rules, sortBy);
+
+  sortedRules.forEach((rule, index) => {
+    // Find the original index in the unsorted rules array
+    const originalIndex = rules.findIndex(r => r === rule);
+    const ruleElement = renderRule(rule, originalIndex, globalEnabled);
     rulesContainer.appendChild(ruleElement);
   });
 

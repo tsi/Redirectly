@@ -1,15 +1,20 @@
 let rules = [];
 let globalEnabled = true; // Track global enabled state
+let currentSortBy = 'created'; // Track current sort preference
 
 // Fetch from storage
 function loadRules() {
-  chrome.storage.local.get({ rules: [], globalEnabled: true }, data => {
+  chrome.storage.local.get({ rules: [], globalEnabled: true, sortBy: 'created' }, data => {
     rules = data.rules;
     globalEnabled = data.globalEnabled;
+    currentSortBy = data.sortBy;
     renderRules();
 
     // Initialize the global toggle state
     initializeGlobalToggle();
+    
+    // Initialize the sort controls
+    initializeSortControls();
   });
 }
 
@@ -43,6 +48,29 @@ function initializeGlobalToggle() {
       globalEnabled = changes.globalEnabled.newValue;
       renderRules(); // Re-render rules to update disabled state
     }
+  });
+}
+
+// Initialize sort controls
+function initializeSortControls() {
+  const sortSelect = document.getElementById('sort-select');
+  
+  // Set the current sort preference
+  sortSelect.value = currentSortBy;
+  
+  // Add event listener for sort changes
+  sortSelect.addEventListener('change', () => {
+    currentSortBy = sortSelect.value;
+    saveSortPreference(currentSortBy, () => {
+      renderRules(); // Re-render with new sort order
+    });
+  });
+  
+  // Listen for sort preference changes from other views
+  onSortPreferenceChange((newSortBy) => {
+    currentSortBy = newSortBy;
+    sortSelect.value = newSortBy;
+    renderRules(); // Re-render with new sort order
   });
 }
 
@@ -87,7 +115,12 @@ function renderRules() {
   container.innerHTML = '';
   const template = document.getElementById('rule-template');
 
-  rules.forEach((rule, idx) => {
+  // Sort rules before rendering
+  const sortedRules = sortRules(rules, currentSortBy);
+
+  sortedRules.forEach((rule, idx) => {
+    // Find the original index in the unsorted rules array
+    const originalIdx = rules.findIndex(r => r === rule);
     // Clone the template
     const ruleElement = template.content.cloneNode(true).querySelector('.rule');
 
@@ -164,7 +197,7 @@ function renderRules() {
     deleteButton.addEventListener('click', (e) => {
       e.stopPropagation();
       if (confirm('Are you sure you want to delete this rule?')) {
-        rules.splice(idx, 1);
+        rules.splice(originalIdx, 1);
         saveRules();
         renderRules();
       }
@@ -176,7 +209,7 @@ function renderRules() {
       e.stopPropagation();
       const newRule = JSON.parse(JSON.stringify(rule));
       newRule.title = `${newRule.title || 'Untitled Rule'} (Copy)`;
-      rules.splice(idx + 1, 0, newRule);
+      rules.splice(originalIdx + 1, 0, newRule);
       saveRules();
       renderRules();
     });
@@ -249,6 +282,11 @@ function renderRules() {
       ruleElement.querySelector('.rule-title').classList.remove('editing');
       saveRules();
       updateShareLink();
+      
+      // Re-sort and re-render if sorting by name
+      if (currentSortBy === 'name') {
+        renderRules();
+      }
     });
 
     titleInput.addEventListener('keydown', (e) => {
@@ -279,7 +317,10 @@ document.getElementById('add').addEventListener('click', () => {
 
   // Auto-expand and focus the new rule
   setTimeout(() => {
-    const newRule = document.querySelector('.rule:last-child');
+    // Find the new rule in the sorted list (it will be at the end if sorted by created date)
+    const sortedRules = sortRules(rules, currentSortBy);
+    const newRuleIndex = sortedRules.length - 1;
+    const newRule = document.querySelectorAll('.rule')[newRuleIndex];
     if (newRule) {
       newRule.classList.remove('collapsed');
       const titleInput = newRule.querySelector('.rule-title-input');

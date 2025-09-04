@@ -28,6 +28,16 @@
       </div>
     </div>
 
+    <div class="rules-header">
+      <div class="sort-controls">
+        <label for="sort-select" class="sort-label">Sort by:</label>
+        <select id="sort-select" class="sort-select">
+          <option value="created">Created Date</option>
+          <option value="name">Name</option>
+        </select>
+      </div>
+    </div>
+
     <div class="rules-container" id="rules">
       <!-- Rules will be added here dynamically -->
     </div>
@@ -115,6 +125,7 @@
     </div>
   </template>
 
+  <script src="sorting.js"></script>
   <script src="options.js"></script>
 </body>
 </html>
