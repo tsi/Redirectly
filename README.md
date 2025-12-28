@@ -13,7 +13,7 @@ A Chrome extension that provides powerful URL redirection and cookie setting cap
 
 ## Getting Started
 
-1. [Download the zip](https://github.com/tsi/Redirectly/archive/refs/heads/main.zip) or clone the repository
+1. Clone the repository or [download the zip](https://github.com/tsi/Redirectly/archive/refs/heads/main.zip)
    ```
    git clone https://github.com/tsi/Redirectly.git
    ```
