@@ -56,9 +56,9 @@ function generateShareableParam(rule) {
   if (!rule.source) return '';
   
   if (rule.type === 'redirect' && rule.target) {
-    return `redirect=${encodeURIComponent(rule.source)}?to=${encodeURIComponent(rule.target)}`;
+    return `redirect=${rule.source}?to=${rule.target}`;
   } else if (rule.type === 'setCookie' && rule.cookieValue) {
-    return `setcookie=${encodeURIComponent(rule.source)}?to=${encodeURIComponent(rule.cookieValue)}`;
+    return `setcookie=${rule.source}?to=${rule.cookieValue}`;
   }
   
   return '';
@@ -210,21 +210,21 @@ function renderRules() {
 
     // Source input change
     sourceInput.addEventListener('change', () => {
-      rule.source = sourceInput.value;
+      rule.source = sourceInput.value.trim();
       saveRules();
       updateShareLink();
     });
 
     // Target input change
     targetInput.addEventListener('change', () => {
-      rule.target = targetInput.value;
+      rule.target = targetInput.value.trim();
       saveRules();
       updateShareLink();
     });
 
     // Cookie input change
     cookieInput.addEventListener('change', () => {
-      rule.cookieValue = cookieInput.value;
+      rule.cookieValue = cookieInput.value.trim();
       saveRules();
       updateShareLink();
     });
@@ -243,8 +243,12 @@ function renderRules() {
     });
 
     // Handle inline title editing
+    titleInput.addEventListener('click', (e) => {
+      e.stopPropagation();
+    });
+
     titleInput.addEventListener('blur', () => {
-      rule.title = titleInput.value;
+      rule.title = titleInput.value.trim();
       titleText.textContent = rule.title || 'Untitled Rule';
       ruleElement.querySelector('.rule-title').classList.remove('editing');
       saveRules();
@@ -252,6 +256,7 @@ function renderRules() {
     });
 
     titleInput.addEventListener('keydown', (e) => {
+      e.stopPropagation();
       if (e.key === 'Enter') {
         titleInput.blur();
       } else if (e.key === 'Escape') {
@@ -318,10 +323,10 @@ importFile.addEventListener('change', () => {
       const arr = JSON.parse(reader.result);
       if (Array.isArray(arr)) {
         rules = arr.map(r => ({
-          title: r.title || '',
-          source: r.source || '',
-          target: r.target || '',
-          cookieValue: r.cookieValue || '',
+          title: (r.title || '').trim(),
+          source: (r.source || '').trim(),
+          target: (r.target || '').trim(),
+          cookieValue: (r.cookieValue || '').trim(),
           enabled: !!r.enabled,
           type: r.type || 'redirect'
         }));
